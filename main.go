@@ -26,13 +26,30 @@ func (ds *DsNode) DsGetSegments() (sids []uint64, err error) {
 }
 
 func main() {
-	stripeWidth := 3
-	stripeSize := 524288
-	stripeSize = stripeSize << 9
-	segSize := 256 * 1024 * 1024
-	newCap := 256 + 20
-	segStripeNum := ((newCap << 20) % (segSize * stripeWidth))
-	fmt.Printf("segStripeNum: %d\n", segStripeNum)
-	segStripeNum = ((newCap << 20) % (segSize * stripeWidth)) / stripeSize
-	fmt.Printf("segStripeNum: %d\n", segStripeNum)
+	// stripeWidth := 3
+	// stripeSize := 524288
+	// stripeSize = stripeSize << 9
+	// segSize := 256 * 1024 * 1024
+	// newCap := 256 + 20
+	// segStripeNum := ((newCap << 20) % (segSize * stripeWidth))
+	// fmt.Printf("segStripeNum: %d\n", segStripeNum)
+	// segStripeNum = ((newCap << 20) % (segSize * stripeWidth)) / stripeSize
+	// fmt.Printf("segStripeNum: %d\n", segStripeNum)
+	dataLen := 128
+	sids := make([]struct{}, 256+63)
+	iterations := len(sids) / dataLen
+	if len(sids)%dataLen != 0 {
+		iterations += 1
+	}
+	for i := 0; i < iterations; i++ {
+		start := i * dataLen
+		end := start + dataLen
+		if end > len(sids) {
+			end = len(sids)
+		}
+		fmt.Printf("ITERATIONS: %d, process len:%d\n", i, end-start)
+		for j := start; j < end; j++ {
+			fmt.Printf("i:%v, start:%v, end:%v, j:%v\n", i, start, end, j)
+		}
+	}
 }

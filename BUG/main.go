@@ -294,6 +294,16 @@ func bug8() {
 	}
 }
 
+// defer求值的时机,defer在执行是进行求值
+func bug9() {
+	a := []int{1, 2, 3, 4}
+	defer func(a []int) {
+		fmt.Println("deferred function a:", a)
+	}(a) // 此时a为[1 2 3 4], deferred函数将输出[1 2 3 4]
+	a = append(a, 5, 6, 7)
+	fmt.Println("The value of a slice: ", a)
+}
+
 func main() {
-	bug8()
+	bug9()
 }
