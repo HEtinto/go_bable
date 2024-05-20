@@ -4,6 +4,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
@@ -304,6 +305,86 @@ func bug9() {
 	fmt.Println("The value of a slice: ", a)
 }
 
+// for range 循环变量重用问题
+// 这里涉及的是go在调用方法是进行的隐式自动转换
+// 在对非指针类型的实例调用指针方法时发生隐式转换
+// 导致了循环变量重用
+
+type field struct {
+	name string
+}
+
+func (p *field) print() {
+	fmt.Println(p.name)
+}
+
+func bug10() {
+	data1 := []*field{{"one"}, {"two"}, {"three"}}
+	for _, v := range data1 {
+		go v.print() // 此处传入的是data1各个元素的地址
+		// 等价形式：go (*field).print(v) // v是各个元素的地址
+	}
+
+	time.Sleep(3 * time.Second)
+	data2 := []field{{"four"}, {"five"}, {"six"}}
+	for _, v := range data2 {
+		go v.print() // 此处传入的是同一个变量v的地址,即复用了v
+		// 由于传递的是同一个v的拷贝,所以最终打印出来的值依赖于go routine的调度
+		// 等价形式：go (*field).print(&v) // 同一个v
+	}
+
+	time.Sleep(3 * time.Second)
+}
+
+// 接口类型等值判断条件: 接口类型中类型相等时才相等
+// 在下面的例子中,returnsError函数中的p的接口类型是MyError
+// 和nil的不同,nil的类型为0,data字段也为0
+// 接口内部实现
+// 需要注意的是,两个非空接口或两个空接口进行判断时需要判断类型和指向的数据都相等才相等
+// 但是非空接口和空接口进行判断时,只需要判断类型相等即可
+/*
+// $GOROOT/src/runtime/runtime2.go
+type iface struct {
+    tab  *itab
+    data unsafe.Pointer
+}
+
+type eface struct {
+    _type *_type
+    data  unsafe.Pointer
+}
+*/
+type MyError struct {
+	error
+}
+
+var ErrBad = MyError{
+	error: errors.New("bad error"),
+}
+
+func bad() bool {
+	return false
+}
+
+func returnsError() error {
+	var p *MyError = nil
+	if bad() {
+		p = &ErrBad
+	}
+	return p
+}
+
+func bug11() {
+	e := returnsError()
+	// e的接口类型中的类型为MyError,与空接口类型nil的类型0x0不相符
+	// 所以e不等于nil
+	if e != nil {
+		fmt.Printf("error: %+v\n", e)
+		return
+	}
+	fmt.Println("ok")
+}
+
 func main() {
-	bug9()
+	bug11()
 }

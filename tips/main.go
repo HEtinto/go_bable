@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // 1.函数类型转换
 type BinaryAdder interface {
@@ -177,6 +180,192 @@ func tips8() {
 	fmt.Println("after function run, old value:", oldValue)
 }
 
+// 模拟函数重载-使用变长参数
+func concat(sep string, args ...interface{}) string {
+	var result string
+	for i, v := range args {
+		if i != 0 {
+			result += sep
+		}
+		// v.(type)是类型断言的一种特殊形式
+		// 它被用在switch语句中,用来判断接口变量v
+		// 持有的具体类型.这种语法是go中的类型开关
+		// 它允许你针对接口值得实际类型编写不同的
+		// 处理逻辑,而不需要显式地写出每个可能类型
+		// 的类型断言.
+		switch v.(type) {
+		case int, int8, int16, int32, int64,
+			uint, uint8, uint16, uint32, uint64:
+			result += fmt.Sprintf("%d", v)
+		case string:
+			result += fmt.Sprintf("%s", v)
+		case []int:
+			ints := v.([]int)
+			for i, v := range ints {
+				if i != 0 {
+					result += sep
+				}
+				result += fmt.Sprintf("%d", v)
+			}
+		case []string:
+			strs := v.([]string)
+			result += strings.Join(strs, sep)
+		default:
+			fmt.Printf("the argument type [%T] is not supported", v)
+			return ""
+		}
+	}
+	return result
+}
+
+func tips9() {
+	println(concat("-", 1, 2))
+	println(concat("-", "hello", "gopher"))
+	println(concat("-", "hello", 1, uint32(2),
+		[]int{11, 12, 13}, 17,
+		[]string{"robot", "ai", "ml"},
+		"hacker", 33))
+}
+
+// 使用变长参数使函数支持默认参数,需要调用者保证自身按照
+// 顺序输入参数
+type record struct {
+	name    string
+	gender  string
+	age     uint16
+	city    string
+	country string
+}
+
+func enroll(args ...interface{} /* name, gender, age, city = "Beijing", country = "China" */) (*record, error) {
+	if len(args) > 5 || len(args) < 3 {
+		return nil, fmt.Errorf("the number of arguments passed is wrong")
+	}
+
+	// 主动设置的默认参数,未设置的默认参数为初始值
+	r := &record{
+		city:    "Beijing", // 默认值：Beijing
+		country: "China",   // 默认值：China
+	}
+
+	for i, v := range args {
+		switch i {
+		case 0: // name
+			name, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("name is not passed as string")
+			}
+			r.name = name
+		case 1: // gender
+			gender, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("gender is not passed as string")
+			}
+			r.gender = gender
+		case 2: // age
+			age, ok := v.(int)
+			if !ok {
+				return nil, fmt.Errorf("age is not passed as int")
+			}
+			r.age = uint16(age)
+		case 3: // city
+			city, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("city is not passed as string")
+			}
+			r.city = city
+		case 4: // country
+			country, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("country is not passed as string")
+			}
+			r.country = country
+		default:
+			return nil, fmt.Errorf("unknown argument passed")
+		}
+	}
+
+	return r, nil
+}
+
+func tips10() {
+	r, _ := enroll("小明", "male", 23)
+	fmt.Printf("%+v\n", *r)
+
+	r, _ = enroll("小红", "female", 13, "Hangzhou")
+	fmt.Printf("%+v\n", *r)
+
+	r, _ = enroll("Leo Messi", "male", 33, "Barcelona", "Spain")
+	fmt.Printf("%+v\n", *r)
+
+	r, err := enroll("小吴", 21, "Suzhou")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+// 使用 功能选项模式 编写更加清晰的功能选择代码
+type FinishedHouse struct {
+	style                  int    // 0: Chinese; 1: American; 2: European
+	centralAirConditioning bool   // true或false
+	floorMaterial          string // "ground-tile"或"wood"
+	wallMaterial           string // "latex"或"paper"或"diatom-mud"
+}
+
+type Option func(*FinishedHouse)
+
+func NewFinishedHouse(options ...Option) *FinishedHouse {
+	h := &FinishedHouse{
+		// default options
+		style:                  0,
+		centralAirConditioning: true,
+		floorMaterial:          "wood",
+		wallMaterial:           "paper",
+	}
+
+	for _, option := range options {
+		option(h) // 此处使用传递进来的功能选项函数去修改结构体的值
+		// 参数可读性更好
+		// 配置选项高度可扩展
+		// 提供使用默认选项最简单的方式
+		// 更加安全,调用之后调用者无法再修改option
+	}
+
+	return h
+}
+
+func WithStyle(style int) Option {
+	return func(h *FinishedHouse) {
+		h.style = style
+	}
+}
+
+func WithFloorMaterial(material string) Option {
+	return func(h *FinishedHouse) {
+		h.floorMaterial = material
+	}
+}
+
+func WithWallMaterial(material string) Option {
+	return func(h *FinishedHouse) {
+		h.wallMaterial = material
+	}
+}
+
+func WithCentralAirConditioning(centralAirConditioning bool) Option {
+	return func(h *FinishedHouse) {
+		h.centralAirConditioning = centralAirConditioning
+	}
+}
+
+func tips11() {
+	fmt.Printf("%+v\n", NewFinishedHouse()) // 使用默认选项
+	fmt.Printf("%+v\n", NewFinishedHouse(WithStyle(1),
+		WithFloorMaterial("ground-tile"),
+		WithCentralAirConditioning(false)))
+}
+
 func main() {
-	tips8()
+	tips10()
 }
